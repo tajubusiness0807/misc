@@ -417,7 +417,10 @@ WG.UI = (function () {
       const act = b.dataset.act;
       if (act === 'skip') { u.done = !u.done; if (u.done) nextUnit(); else selectUnit(u); updateHUD(); }
       if (act === 'city') selectCity(c);
-      if (act === 'disband' && confirm(`Disband this ${t.name}?`)) { Gm.killUnit(u, `${Gm.uname(u)} was disbanded`); S.sel = null; afterAction(); }
+      if (act === 'disband') {
+        if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Confirm disband'; return; }
+        Gm.killUnit(u, `${Gm.uname(u)} was disbanded`); S.sel = null; afterAction();
+      }
     });
   }
 
