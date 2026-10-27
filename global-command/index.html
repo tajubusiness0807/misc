@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Global Command</title>
+<meta name="description" content="An intercontinental, turn-based tactical war game played on a hex map of the world.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="map" aria-label="World map"></canvas>
+
+<header id="topbar" class="hud">
+  <div class="brand">GLOBAL<span>COMMAND</span></div>
+  <div id="faction-chip" class="faction-chip"></div>
+  <div class="stat"><label>Credits</label><b id="credits">0</b><small id="income"></small></div>
+  <div class="stat"><label>Turn</label><b id="turn">1</b></div>
+  <div class="spacer"></div>
+  <div id="status-text" class="status-text"></div>
+  <button id="btn-next" class="btn" title="Select next unit with orders left (N)">Next unit <kbd>N</kbd></button>
+  <button id="btn-end" class="btn primary" title="End your turn (E)">End turn <kbd>E</kbd></button>
+  <button id="btn-menu" class="btn icon" title="Menu" aria-label="Menu">&#9776;</button>
+</header>
+
+<div id="menu" class="dropdown hud hidden">
+  <button data-menu="save">Save game</button>
+  <button data-menu="load">Load game</button>
+  <button data-menu="speed">AI speed: <span id="speed-label">Normal</span></button>
+  <button data-menu="sound">Sound: <span id="sound-label">On</span></button>
+  <button data-menu="help">How to play</button>
+  <button data-menu="new">New game</button>
+</div>
+
+<aside id="powers" class="hud panel"></aside>
+<aside id="panel" class="hud panel"></aside>
+<div id="log" class="hud panel"><div class="panel-title">Dispatches</div><ul id="log-list"></ul></div>
+<div id="minimap-wrap" class="hud"><canvas id="minimap"></canvas></div>
+<div id="zoom-ctrls" class="hud">
+  <button class="btn icon" id="zoom-in" aria-label="Zoom in">+</button>
+  <button class="btn icon" id="zoom-out" aria-label="Zoom out">&minus;</button>
+</div>
+<div id="tooltip" class="hidden"></div>
+<div id="banner"><div class="b-title"></div><div class="b-sub"></div></div>
+<div id="toasts"></div>
+
+<div id="start-modal" class="modal">
+  <div class="modal-card wide">
+    <div class="title-block">
+      <div class="brand big">GLOBAL<span>COMMAND</span></div>
+      <p class="tagline">Seven powers. Six continents. One world to hold.</p>
+    </div>
+    <h4>Choose your power <small>Untick a power to leave it out of the war; its cities start neutral.</small></h4>
+    <div id="faction-grid" class="faction-grid"></div>
+    <div class="options">
+      <div class="opt">
+        <label>Difficulty</label>
+        <div class="seg" id="opt-diff">
+          <button data-v="easy">Easy</button><button data-v="normal" class="on">Normal</button><button data-v="hard">Hard</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>Fog of war</label>
+        <div class="seg" id="opt-fog"><button data-v="on" class="on">On</button><button data-v="off">Off</button></div>
+      </div>
+      <div class="opt">
+        <label>AI speed</label>
+        <div class="seg" id="opt-speed"><button data-v="normal" class="on">Normal</button><button data-v="fast">Fast</button><button data-v="instant">Instant</button></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="btn-continue" class="btn hidden">Continue saved game</button>
+      <button id="btn-help2" class="btn">How to play</button>
+      <button id="btn-start" class="btn primary big">Deploy forces</button>
+    </div>
+  </div>
+</div>
+
+<div id="help-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2>How to play</h2>
+    <div class="help-cols">
+      <section>
+        <h4>Goal</h4>
+        <p>Win by holding <b>every starting capital</b>, controlling <b>60% of all cities</b>, or eliminating every rival. You lose if you lose all of your cities.</p>
+        <h4>Turns</h4>
+        <p>Each turn you collect credits from your cities (capitals give a bonus; holding every city in a region pays a <b>region bonus</b>). Every city can build one unit per turn. Units move, then attack. End your turn with <kbd>E</kbd>.</p>
+        <p>Armies cost upkeep: you get 10 units plus one per city for free, and each unit beyond that costs 0.5 credits a turn. A freshly captured city is in <b>unrest</b> for 2 turns: no income and no production.</p>
+        <h4>Combat</h4>
+        <p>Damage depends on attack vs. defence, remaining HP and terrain. Defenders hit back if they can reach the attacker. Hover an enemy to see a forecast before you commit. Ranged units (artillery, battleships) are never counter-attacked.</p>
+        <h4>Terrain</h4>
+        <p>Forest +25%, hills +30%, mountains +60% defence; cities +50%, capitals +75%. Units that don't move entrench for an extra +20%. Land units must stop when they move next to an enemy land unit (zone of control).</p>
+      </section>
+      <section>
+        <h4>Crossing oceans</h4>
+        <p>Land units can <b>embark</b> by moving onto a coastal sea hex (this ends their move). At sea they move 4 hexes per turn but defend very poorly — escort them. Moving back onto land disembarks. Naval units may sail through your own port cities: hold <b>Panama</b> and <b>Cairo</b> to use the canals.</p>
+        <h4>Air power</h4>
+        <p>Fighters and bombers may keep moving after attacking. An aircraft that ends its turn away from a friendly city or carrier loses 3 HP. Anti-air units fire on aircraft attacking anything next to them.</p>
+        <h4>ICBMs</h4>
+        <p>Cities can build intercontinental missiles (30 credits, range 32). A strike deals 7 damage on the target hex and 3 to the hexes around it, and halves the target city's income for 3 turns. Enemy anti-air near the target may intercept it.</p>
+        <h4>Controls</h4>
+        <p>Click to select, click a highlighted hex to move or attack. Right-click or <kbd>Esc</kbd> cancels. Drag to pan, scroll to zoom. <kbd>N</kbd> next unit, <kbd>S</kbd> skip unit, <kbd>C</kbd> go to capital, <kbd>Space</kbd> centre selection, arrows/WASD pan, <kbd>+</kbd>/<kbd>-</kbd> zoom.</p>
+      </section>
+    </div>
+    <div class="modal-actions"><button class="btn primary" data-close>Got it</button></div>
+  </div>
+</div>
+
+<div id="end-modal" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="end-title">Victory</h2>
+    <p id="end-text"></p>
+    <div id="end-stats"></div>
+    <div class="modal-actions">
+      <button class="btn" data-close>View map</button>
+      <button class="btn primary" id="btn-again">New game</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/mapdata.js"></script>
+<script src="js/data.js"></script>
+<script src="js/hex.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
